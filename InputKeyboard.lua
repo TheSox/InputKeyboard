@@ -1,5 +1,5 @@
 --[[
-	InputKeyboard v0.2
+	InputKeyboard v0.3
 	(C) 2012 Mathz Data och Webbutveckling, Mathz Franzén
 	Classes for creating an inputbox which activates a keyboard on focus.
 	This is intended for use with Gideros Mobile ( http://http://www.giderosmobile.com )
@@ -28,7 +28,15 @@
 		So in short: never remove contributors, always add and try to be nice to the community by share modifications.
 
 	USAGE:
-		Create new inputbox: KeyBoard.new()
+		Create new inputbox: KeyBoard.new(language)
+							 Parameters: language 	 (string)(optional) Locale string
+										 The locale string is a combination of ISO 639-1 and ISO 3166-1. For example, en_US, ja_JP.
+										 Default string is en_GB
+										 To use another locale the file local\"localcode".lua muste exist with a definition of the keyboard
+		Change language:	 KeyBoard:setLang(language, create)
+							 Parameters: language 	 (string)(optional) Locale string, se info above
+										 create		 (boolean) States if the keyboard should be created directly, if set to false you have
+													           to use KeyBoard:Create() to see the new keyboard layout
 		Create new inputbox: InputBox.new(xpos,ypos,width,height)
 							 Parameters: xpos:   	 (number)Horiontal position
 										 ypos:   	 (number)Vertical position
@@ -60,6 +68,11 @@
 		2. Only portrait mode is supported.
 		3. Developed for Scale mode "Fit width", other scale modes could potentially be a problem.
 		4. Developed for width 480px
+
+	HISTORY:
+	v0.1	First version (Mathz)
+	v0.2	Using TTF fonts instead of images for keys (Mathz)
+	v0.3	Localization of keyboard (Mathz)
 
 	TODO:
 		Scroll text when passing max width							 
@@ -175,19 +188,24 @@ function Letter:init(theLetter,width,height, font)
 end
 
 Key = Core.class(Sprite)
-function Key:init(keyValues,parent,colLeft,rowTop, font)
+function Key:init(keyValues,parent,colLeft,rowTop, font, layer)
+	self.layer = layer
 	self.BigSmallSwitcher = false
 	self.NumericalSwitcher = false
 	self.parent = parent
 	self.active = false
 
 	local keyType = 1
-	if keyValues[1] == parent.UPPER or keyValues[1] == parent.LOWER or keyValues[1] == parent.DEL or keyValues[1] == parent.TEXT or keyValues[1] == parent.NUMBERS or keyValues[1] == parent.HIDE then
+	if keyValues == parent.UPPER or keyValues == parent.LOWER or keyValues == parent.DEL or keyValues == parent.TEXT or keyValues == parent.NUMBERS or keyValues == parent.HIDE or keyValues == parent.ENTER then
 		keyType = 2
-	elseif keyValues[1] == parent.SPACE then
+	elseif keyValues == parent.SPACE then
 		keyType = 3
 	end
-	self.keyBack = Bitmap.new(parent.keyImages["BACKGROUND"][keyType])
+	if keyValues == parent.LOWER then
+		self.keyBack = Bitmap.new(parent.keyImages[keyValues])
+	else
+		self.keyBack = Bitmap.new(parent.keyImages["BACKGROUND"][keyType])
+	end
 	self.selKey = Bitmap.new(parent.keyImages["HIGHLIGHT"][keyType])
 	self.keyBack:setPosition(colLeft,rowTop)
 	self.selKey:setPosition(colLeft,rowTop)
@@ -195,55 +213,33 @@ function Key:init(keyValues,parent,colLeft,rowTop, font)
 	self:addChild(self.keyBack)
 	self:addChild(self.selKey)
 
-	--Enter unicode: 0xE29692 (dec: \226\150\146)
-	self.keyLetters = {}
 	self.text = keyValues
-	for i=1,3  do
-		self.keyLetters[i] = {}
-		if keyValues[i]:len() <= 2 then
-			self.keyLetters[i][1] = Letter.new(keyValues[i],self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.NUMBERS then
-			self.keyLetters[i][1] = Letter.new("?12",self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.TEXT then
-			self.keyLetters[i][1] = Letter.new("abc",self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.HIDE then
-			--Down arrow Unicode: 0xE28693
-			self.keyLetters[i][1] = Letter.new("\226\134\147",self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.UPPER then
-			--Up arrow Unicode: 0xE28691
-			self.keyLetters[i][1] = Letter.new("\226\134\145",self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.DEL then
-			--Delete Unicode: 0xE296A0
-			self.keyLetters[i][1] = Letter.new("\226\150\160",self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.SPACE then
-			self.keyLetters[i][1] = Letter.new("",self:getWidth(), parent.keyHeight, font)
-		elseif keyValues[i] == parent.LOWER then
-			self.keyLetters[i][1] = Letter.new("\226\134\145",self:getWidth(), parent.keyHeight, font)
-			self.keyLetters[i][2] = Bitmap.new(parent.keyImages[keyValues[i]])
-			self.keyLetters[i][2]:setPosition(colLeft,rowTop)
-			self.keyLetters[i][2]:setVisible(false)
-			self.keyLetters[i][3] = keyValues[i]
-			self:addChild(self.keyLetters[i][2])
-		else
-			--Prepare for the empty background
-			self.keyLetters[i][1] = Letter.new("",self:getWidth(), parent.keyHeight, font)
-			self.keyLetters[i][2] = Bitmap.new(parent.keyImages[keyValues[i]])
-			self.keyLetters[i][2]:setPosition(colLeft,rowTop)
-			self.keyLetters[i][3] = parent.EMPTY
-			self:addChild(self.keyLetters[i][2])
-			if parent.activeLayout == i then
-				self.keyLetters[i][2]:setVisible(true)
-			else
-				self.keyLetters[i][2]:setVisible(false)
-			end
-		end
-		if parent.activeLayout == i then
-			self.keyLetters[i][1]:setVisible(true)
-		else
-			self.keyLetters[i][1]:setVisible(false)
-		end
-		self.keyLetters[i][1]:setPosition(colLeft,rowTop)
-		self:addChild(self.keyLetters[i][1])
+	local keyExists = true
+	if keyValues and keyValues:len() <= 2 then
+		self.keyLetters = Letter.new(keyValues,self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.NUMBERS then
+		self.keyLetters = Letter.new("?12",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.TEXT then
+		self.keyLetters = Letter.new("abc",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.HIDE then	--Down arrow Unicode: 0xE28693	
+		self.keyLetters = Letter.new("\226\134\147",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.UPPER then	--Up arrow Unicode: 0xE28691	
+		self.keyLetters = Letter.new("\226\134\145",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.DEL then		--Delete Unicode: 0xE296A0
+		self.keyLetters = Letter.new("\226\150\160",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.SPACE then
+		self.keyLetters = Letter.new("",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.LOWER then
+		self.keyLetters = Letter.new("\226\134\145",self:getWidth(), parent.keyHeight, font)
+	elseif keyValues == parent.ENTER then	--Enter unicode: 0xE29692
+		self.keyLetters = Letter.new("\226\150\146",self:getWidth(), parent.keyHeight, font)
+	else
+		--No key present!
+		keyExists = false
+	end
+	if keyExists then
+		self.keyLetters:setPosition(colLeft,rowTop)
+		self:addChild(self.keyLetters)
 	end
 	self.keyBack:addEventListener(Event.MOUSE_UP,self.onMouseUp, self)
 	self.keyBack:addEventListener(Event.MOUSE_DOWN,self.onMouseDown, self)
@@ -257,27 +253,8 @@ function Key:setNUMSwitcher(switcher)
 	self.NumericalSwitcher = switcher
 end
 
-function Key:setText()
-	local visible = nil
-	for i=1,3  do
-		if self.parent.activeLayout == i then
-			visible = true
-		else
-			visible = false
-		end
-		self.keyLetters[i][1]:setVisible(visible)
-		if #self.keyLetters[i] >1 then
-			if self.keyLetters[i][3] == self.parent.LOWER then
-				self.keyLetters[i][2]:setVisible(visible)
-			elseif self.keyLetters[i][3] == self.parent.EMPTY then
-				self.keyLetters[i][2]:setVisible(visible)
-			end
-		end
-	end
-end
-
 function Key:onMouseDown(event)
-	if self:hitTestPoint(event.x, event.y) then
+	if self:hitTestPoint(event.x, event.y) and self.layer == self.parent.activeLayout then
 		self.selKey:setVisible(true)
 		self.active = true
 		event:stopPropagation()
@@ -285,19 +262,24 @@ function Key:onMouseDown(event)
 end
 
 function Key:onMouseUp(event)
-	if self:hitTestPoint(event.x, event.y) and self.active then
+	if self:hitTestPoint(event.x, event.y) and self.layer == self.parent.activeLayout and self.active then
 		self.active = false
 		Timer.delayedCall(100, function()
 			self.selKey:setVisible(false)
 		end)
-		local newLetter = self.text[self.parent.activeLayout]
+		local newLetter = self.text
 		if newLetter == self.parent.UPPER or newLetter == self.parent.LOWER then
 			self.parent:dispatchEvent(Event.new("switchBM"))
 		elseif newLetter == self.parent.NUMBERS or newLetter == self.parent.TEXT then
 			self.parent:dispatchEvent(Event.new("switchNUM"))
 		elseif newLetter == self.parent.DEL then
-			self.parent.inputbox.textField:setText(string.sub(self.parent.inputbox.textField:getText(),1,self.parent.inputbox.textField:getText():len()-1))
-			self.parent.inputbox.textContent = string.sub(self.parent.inputbox.textContent,1,self.parent.inputbox.textContent:len()-1)
+			local lastByte = string.byte(string.sub(self.parent.inputbox.textContent,self.parent.inputbox.textContent:len(),self.parent.inputbox.textContent:len()))
+			local delLength = 1
+			if lastByte and lastByte >=128 and lastByte <=192 then
+				delLength = 2	-- The character to remove uses two bytes in the string
+			end
+			self.parent.inputbox.textField:setText(string.sub(self.parent.inputbox.textField:getText(),1,self.parent.inputbox.textField:getText():len()-delLength))
+			self.parent.inputbox.textContent = string.sub(self.parent.inputbox.textContent,1,self.parent.inputbox.textContent:len()-delLength)
 		elseif newLetter == self.parent.SPACE then
 			local letter = " "
 			if self.parent.inputbox.passWordField then
@@ -307,8 +289,6 @@ function Key:onMouseUp(event)
 			self.parent.inputbox.textContent = self.parent.inputbox.textContent.." "
 		elseif newLetter == self.parent.HIDE then
 			self.parent:Hide()
-		elseif newLetter == self.parent.EMPTY then
-			-- do nothing
 		elseif self.parent.inputbox.textField:getText():len() < self.parent.inputbox.maxLetters then
 			local letter = newLetter
 			if self.parent.inputbox.passWordField then
@@ -325,21 +305,21 @@ function Key:onMouseUp(event)
 end
 
 KeyBoard = Core.class(Sprite)
-
-function KeyBoard:init()
+function KeyBoard:init(language)
+	self.hSpacing = {0,0,0}
+	self.cChildren = {0,0,0}
 	self.TEXT = "TEXT"
 	self.NUMBERS = "NUMBERS"
 	self.SPACE = "SPACE"
-	self.EMPTY = "EMPTY"
 	self.HIDE = "HIDE"
 	self.DEL = "DEL"
 	self.UPPER = "UPPERCASE"
 	self.LOWER = "LOWERCASE"
+	self.ENTER = "ENTER"
 	self.EXTRASPACE = "ES"
-	
+	self.lang = "en_GB"
 	-- Load all keyimages
 	self.keyImages = {}
-	self.keyImages[self.EMPTY] = Texture.new("img/"..self.EMPTY..".png")
 	self.keyImages[self.LOWER] = Texture.new("img/"..self.LOWER..".png")	
 	self.keyImages["BACKGROUND"] = {}
 	self.keyImages["HIGHLIGHT"] = {}
@@ -351,39 +331,17 @@ function KeyBoard:init()
 	self.keyImages["HIGHLIGHT"][3] = Texture.new("img/keyHigh3.png")
 
 	self.activeLayout = 1
-	self.keys = 
-	{	
-		{--Lower Case
-			{ "q", "w", "e", "r", "t", "y", "u", "i", "o", "p" },
-			{ self.EXTRASPACE, "a", "s", "d", "f", "g", "h", "j", "k", "l" },
-			{ self.UPPER, "z", "x", "c", "v", "b", "n", "m", self.DEL },
-			{ self.NUMBERS, "@", self.SPACE, ".", self.HIDE }
-		} ,	
-		{--Upper Case
-			{ "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" },
-			{ self.EXTRASPACE, "A", "S", "D", "F", "G", "H", "J", "K", "L" },
-			{ self.LOWER, "Z", "X", "C", "V", "B", "N", "M", self.DEL },
-			{ self.NUMBERS, "@", self.SPACE, ".", self.HIDE }	
-		} ,	
-		{--Numerical and other
-			{ "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" },
-			{ self.EXTRASPACE, "#", "%", "&", "*", "/", "-", "+", "(", ")" },
-			{ self.EMPTY, "?", "!", "\"", "'", ":", ";", ",", self.DEL },
-			{ self.TEXT, "@", self.SPACE, ".", self.HIDE   }	
-		}
-	}
 
 	local tmpKey = Bitmap.new(self.keyImages["BACKGROUND"][1])
 	self.keyWidth = tmpKey:getWidth()
 	self.keyHeight =tmpKey:getHeight()
 	tmpKey = nil
 
-	self.hSpacing = (application:getLogicalWidth() - self.keyWidth * 10) / 11 
-	self.vSpacing = self.hSpacing - 1
+	self:setLang(language, false)
+	self.rows = 4
+	self.vSpacing = 7.18
 	self.big = false
 	self.numerical = false
-	self.rows = #self.keys[1]
-	self.letterHolder = {}
 	self.topBorder = application:getLogicalHeight() + application:getLogicalTranslateY() / application:getLogicalScaleY() - (self.rows * self.keyHeight + (self.rows + 1) * self.vSpacing)
 	self:setPosition(0,application:getLogicalHeight() + application:getLogicalTranslateY() / application:getLogicalScaleY())
 	self.movieFrames = (application:getLogicalHeight() + application:getLogicalTranslateY() / application:getLogicalScaleY() - self.topBorder) / 20
@@ -399,9 +357,35 @@ function KeyBoard:init()
 	self.background:lineTo(0, 0)
 	self.background:endPath()
 	self:addChild(self.background)
+	self.layers = {}
+	for i=1,3 do
+		self.layers[i] = Sprite.new()
+		self:addChild(self.layers[i])
+	end
 	self:addEventListener("switchBM", self.onBMSwitch, self)
 	self:addEventListener("switchNUM", self.onNUMSwitch, self)
 	self:addEventListener("ShowKeyboard", self.onShow, self)
+end
+
+function KeyBoard:setLang(language, create)
+	local defLang = "en_GB"
+	if language == nil then
+		language = defLang
+	end
+	-- Load keyboard matrix
+	local langFile = loadfile("locale/"..language..".lua")
+	if langFile == nil then
+		language = defLang
+		langFile = loadfile("locale/"..language..".lua")
+	end
+	langFile()
+	self.keys = keyLang(self)
+	for i=1,3 do
+		self.hSpacing[i] = (application:getLogicalWidth() - self.keyWidth * #self.keys[i][1]) / (#self.keys[i][1] + 1)
+	end
+	if create then
+		self:Create(self.inputbox)
+	end
 end
 
 function KeyBoard:onBMSwitch()
@@ -411,7 +395,7 @@ function KeyBoard:onBMSwitch()
 		self.activeLayout = 2
 	end
 	self.big = not self.big
-	for i,k in pairs(self.letterHolder) do self.letterHolder[i]:setText() end
+	self:ShowActiveLayer()
 end
 
 function KeyBoard:onNUMSwitch()
@@ -425,35 +409,51 @@ function KeyBoard:onNUMSwitch()
 		self.activeLayout = 3
 	end
 	self.numerical = not self.numerical
-	for i,k in pairs(self.letterHolder) do self.letterHolder[i]:setText() end
+	self:ShowActiveLayer()
 end
 
-function KeyBoard:Create()
+function KeyBoard:ShowActiveLayer()
+	for i=1,3 do
+		if i == self.activeLayout then
+			self.layers[i]:setVisible(true)
+		else
+			self.layers[i]:setVisible(false)
+		end
+	end
+end
+
+function KeyBoard:Create(inputBox)
 	local colLeft =  0
 	local rowTop = - self.keyHeight
-	self.inputbox = nil
-	local counter = 0
 	local font = TTFont.new("arial.ttf",30,true)
+	self.inputbox = inputBox
 
-	for rowNo = 1, 4, 1 do
-		rowTop = rowTop + self.vSpacing + self.keyHeight
-		colLeft =  self.hSpacing
-		for i,letter in pairs(self.keys[1][rowNo]) do
-			counter = counter + 1
-			local keyValues = {}
-			for b=1,3,1 do
-				keyValues[b]= self.keys[b][rowNo][i]
+	for b,layer in pairs(self.keys) do
+		rowTop = - self.keyHeight
+		if self.cChildren[b] > 0 then
+			for d=1,self.cChildren[b] do
+				self.layers[b]:removeChildAt(1)
 			end
-
-			if self.keys[1][rowNo][i] == self.EXTRASPACE then
-				colLeft = colLeft + (self.keyWidth +self.hSpacing) / 2
-			else
-				self.letterHolder[counter] = Key.new(keyValues,self,colLeft,rowTop,font)
-				self:addChild(self.letterHolder[counter])
-				colLeft = colLeft + self.letterHolder[counter]:getWidth() + self.hSpacing
+			self.cChildren[b] = 0
+		end
+		for rowNo,row in pairs(layer) do
+			colLeft =  self.hSpacing[b]
+			rowTop = rowTop + self.vSpacing + self.keyHeight
+			for i,letter in pairs(row) do
+				if letter == self.EXTRASPACE then
+					colLeft = colLeft + (self.keyWidth + self.hSpacing[b]) / 2
+				else
+					local theKey = Key.new(letter,self,colLeft,rowTop,font,b)
+					self.layers[b]:addChild(theKey)
+					self.cChildren[b] = self.cChildren[b] + 1
+					colLeft = colLeft + theKey:getWidth() + self.hSpacing[b]
+				end
 			end
 		end
 	end
+
+	self.layers[2]:setVisible(false)
+	self.layers[3]:setVisible(false)
 end
 
 function KeyBoard:Hide() 

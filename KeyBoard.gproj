@@ -12,6 +12,12 @@
    <scale suffix="@0.5x" scale="0.5"/>
   </imageScales>
  </properties>
+ <folder name="locale">
+  <file source="ru_RU.lua"/>
+  <file source="de_DE.lua"/>
+  <file source="locale/en_GB.lua"/>
+  <file source="locale/sv_SE.lua"/>
+ </folder>
  <folder name="img">
   <file source="img/base/LOWERCASE.png"/>
   <file source="img/base/keyHigh3.png"/>
@@ -20,7 +26,6 @@
   <file source="img/base/key3.png"/>
   <file source="img/base/key2.png"/>
   <file source="img/base/key.png"/>
-  <file source="img/base/EMPTY.png"/>
   <file source="img/@3.2x/LOWERCASE@3.2x.png"/>
   <file source="img/@3.2x/keyHigh3@3.2x.png"/>
   <file source="img/@3.2x/keyHigh2@3.2x.png"/>
@@ -28,7 +33,6 @@
   <file source="img/@3.2x/key3@3.2x.png"/>
   <file source="img/@3.2x/key2@3.2x.png"/>
   <file source="img/@3.2x/key@3.2x.png"/>
-  <file source="img/@3.2x/EMPTY@3.2x.png"/>
   <file source="img/@1.125x/LOWERCASE@1.125x.png"/>
   <file source="img/@1.125x/keyHigh3@1.125x.png"/>
   <file source="img/@1.125x/keyHigh2@1.125x.png"/>
@@ -36,7 +40,6 @@
   <file source="img/@1.125x/key3@1.125x.png"/>
   <file source="img/@1.125x/key2@1.125x.png"/>
   <file source="img/@1.125x/key@1.125x.png"/>
-  <file source="img/@1.125x/EMPTY@1.125x.png"/>
   <file source="img/@1.67x/LOWERCASE@1.67x.png"/>
   <file source="img/@1.67x/keyHigh3@1.67x.png"/>
   <file source="img/@1.67x/keyHigh2@1.67x.png"/>
@@ -44,7 +47,6 @@
   <file source="img/@1.67x/key3@1.67x.png"/>
   <file source="img/@1.67x/key2@1.67x.png"/>
   <file source="img/@1.67x/key@1.67x.png"/>
-  <file source="img/@1.67x/EMPTY@1.67x.png"/>
   <file source="img/@1.33x/LOWERCASE@1.33x.png"/>
   <file source="img/@1.33x/keyHigh3@1.33x.png"/>
   <file source="img/@1.33x/keyHigh2@1.33x.png"/>
@@ -52,7 +54,6 @@
   <file source="img/@1.33x/key3@1.33x.png"/>
   <file source="img/@1.33x/key2@1.33x.png"/>
   <file source="img/@1.33x/key@1.33x.png"/>
-  <file source="img/@1.33x/EMPTY@1.33x.png"/>
   <file source="img/@1.25x/LOWERCASE@1.25x.png"/>
   <file source="img/@1.25x/keyHigh3@1.25x.png"/>
   <file source="img/@1.25x/keyHigh2@1.25x.png"/>
@@ -60,7 +61,6 @@
   <file source="img/@1.25x/key3@1.25x.png"/>
   <file source="img/@1.25x/key2@1.25x.png"/>
   <file source="img/@1.25x/key@1.25x.png"/>
-  <file source="img/@1.25x/EMPTY@1.25x.png"/>
   <file source="img/@1.6x/LOWERCASE@1.6x.png"/>
   <file source="img/@1.6x/keyHigh3@1.6x.png"/>
   <file source="img/@1.6x/keyHigh2@1.6x.png"/>
@@ -68,7 +68,6 @@
   <file source="img/@1.6x/key3@1.6x.png"/>
   <file source="img/@1.6x/key2@1.6x.png"/>
   <file source="img/@1.6x/key@1.6x.png"/>
-  <file source="img/@1.6x/EMPTY@1.6x.png"/>
   <file source="img/@0.75x/LOWERCASE@0.75x.png"/>
   <file source="img/@0.75x/keyHigh3@0.75x.png"/>
   <file source="img/@0.75x/keyHigh2@0.75x.png"/>
@@ -76,7 +75,6 @@
   <file source="img/@0.75x/key3@0.75x.png"/>
   <file source="img/@0.75x/key2@0.75x.png"/>
   <file source="img/@0.75x/key@0.75x.png"/>
-  <file source="img/@0.75x/EMPTY@0.75x.png"/>
   <file source="img/@0.67x/LOWERCASE@0.67x.png"/>
   <file source="img/@0.67x/keyHigh3@0.67x.png"/>
   <file source="img/@0.67x/keyHigh2@0.67x.png"/>
@@ -84,7 +82,6 @@
   <file source="img/@0.67x/key3@0.67x.png"/>
   <file source="img/@0.67x/key2@0.67x.png"/>
   <file source="img/@0.67x/key@0.67x.png"/>
-  <file source="img/@0.67x/EMPTY@0.67x.png"/>
   <file source="img/@0.5x/LOWERCASE@0.5x.png"/>
   <file source="img/@0.5x/keyHigh3@0.5x.png"/>
   <file source="img/@0.5x/keyHigh2@0.5x.png"/>
@@ -92,7 +89,6 @@
   <file source="img/@0.5x/key3@0.5x.png"/>
   <file source="img/@0.5x/key2@0.5x.png"/>
   <file source="img/@0.5x/key@0.5x.png"/>
-  <file source="img/@0.5x/EMPTY@0.5x.png"/>
  </folder>
  <file source="arial.ttf"/>
  <file source="InputKeyboard.lua"/>
