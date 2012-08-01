@@ -1,5 +1,5 @@
 --[[
-	InputKeyboard v0.3
+	InputKeyboard v0.3a
 	(C) 2012 Mathz Data och Webbutveckling, Mathz Franzén
 	Classes for creating an inputbox which activates a keyboard on focus.
 	This is intended for use with Gideros Mobile ( http://http://www.giderosmobile.com )
@@ -73,6 +73,7 @@
 	v0.1	First version (Mathz)
 	v0.2	Using TTF fonts instead of images for keys (Mathz)
 	v0.3	Localization of keyboard (Mathz)
+	v0.3a	Keyboard files moved to correct directory
 
 	TODO:
 		Scroll text when passing max width							 
