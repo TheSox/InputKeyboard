@@ -13,10 +13,10 @@
   </imageScales>
  </properties>
  <folder name="locale">
-  <file source="ru_RU.lua"/>
-  <file source="de_DE.lua"/>
-  <file source="locale/en_GB.lua"/>
   <file source="locale/sv_SE.lua"/>
+  <file source="locale/ru_RU.lua"/>
+  <file source="locale/en_GB.lua"/>
+  <file source="locale/de_DE.lua"/>
  </folder>
  <folder name="img">
   <file source="img/base/LOWERCASE.png"/>
