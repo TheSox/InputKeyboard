@@ -1,5 +1,5 @@
 --[[
-	InputKeyboard v0.3a
+	InputKeyboard v0.4
 	(C) 2012 Mathz Data och Webbutveckling, Mathz Franzén
 	Classes for creating an inputbox which activates a keyboard on focus.
 	This is intended for use with Gideros Mobile ( http://http://www.giderosmobile.com )
@@ -74,10 +74,9 @@
 	v0.2	Using TTF fonts instead of images for keys (Mathz)
 	v0.3	Localization of keyboard (Mathz)
 	v0.3a	Keyboard files moved to correct directory
-
-	TODO:
-		Scroll text when passing max width							 
-								
+	v0.4	1. Show alternatie letters when pressing longer on a key
+			2. Automatically deleting more characters when holding the DEL key pressed
+			3. Fixed some potential memory leaks			
 ]]--
 InputBox = Core.class(Sprite)
 
@@ -103,11 +102,11 @@ function InputBox:init(x,y,width,height)
 end
 
 function InputBox:setBoxColors(background, border, borderWidth, alpha)
-	self:drawBox(self.background, background, border, borderWidth, alpha)
+	drawBox(self.background, background, border, borderWidth, alpha, self.width, self.height)
 end
 
 function InputBox:setActiveBoxColors(background, border, borderWidth, alpha)
-	self:drawBox(self.active, background, border, borderWidth, alpha)
+	drawBox(self.active, background, border, borderWidth, alpha, self.width, self.height)
 end
 
 function InputBox:getText()
@@ -154,16 +153,95 @@ function InputBox:DeActivate()
 	self.active:setVisible(false);
 end
 
-function InputBox:drawBox(box, background, border, borderWidth, alpha)
-	box:setLineStyle(borderWidth, border, alpha)
+function drawBox(box, background, border, borderWidth, alpha, width, height)
+	if borderWidth > 0 then
+		box:setLineStyle(borderWidth, border, alpha)
+	end
 	box:setFillStyle(Shape.SOLID, background, alpha)
 	box:beginPath(Shape.NON_ZERO)
 	box:moveTo(0,0)
-	box:lineTo(self.width,0)
-	box:lineTo(self.width, self.height)
-	box:lineTo(0, self.height)
+	box:lineTo(width,0)
+	box:lineTo(width, height)
+	box:lineTo(0, height)
 	box:lineTo(0, 0)
 	box:endPath()
+end
+
+SubKeySelector = Core.class(Sprite)
+function SubKeySelector:init(mainKey, subKeys,keyWidth)
+	local font = TTFont.new("arial.ttf",30,true)
+	self.Keys = {}
+	self.Active = 0
+	self.Fields = Sprite.new()
+	self.direction = 1
+	self.keyWidth = keyWidth
+	for i,k in pairs(subKeys) do
+		self.Keys[i] = TextField.new(font,k)
+		self.Keys[i]:setTextColor(0xaaaaaa)
+		self.Fields:addChild(self.Keys[i])
+	end
+	self.box = Shape.new()
+	drawBox(self.box, 0x000000, 0xadadad, 1 / application:getLogicalScaleX(), 0.9, self.keyWidth*#self.Keys, 50)
+	self:addChild(self.box)
+	self:addChild(self.Fields)
+	self:setActive(1)
+	font = nil
+end
+
+function SubKeySelector:cleanUp()
+	self:removeChild(self.box)
+	self.box = nil
+	for i,k in pairs(self.Keys) do 
+		self.Fields:removeChild(self.Keys[i])
+		self.Keys[i] = nil
+	end
+	self:removeChild(self.Fields)
+	self.Fields = nil
+	self = nil
+end
+
+function SubKeySelector:Show()
+	local posx = 0
+	if self.direction == -1 then
+		posx = (#self.Keys - 1) * self.keyWidth
+	end
+	for i,k in pairs(self.Keys) do
+		self.Keys[i]:setPosition(posx + ((self.keyWidth-self.Keys[i]:getWidth())/2),0)
+		posx = posx + self.keyWidth * self.direction
+	end
+	self.box:setPosition(0,-38)
+	self:setVisible(true)
+end
+
+function SubKeySelector:getMaxKeys()
+	return #self.Keys
+end
+
+function SubKeySelector:setActive(active)
+	if self.Active ~= active then
+		if self.Active > 0 then
+			self.Keys[self.Active]:setTextColor(0xaaaaaa)
+		end	
+		self.Active = active
+		self.Keys[self.Active]:setTextColor(0xffffff)
+	end
+end
+
+function SubKeySelector:getActive()
+	return self.Active
+end
+
+function SubKeySelector:getSelectedKey()
+	return self.Keys[self.Active]:getText()
+end
+
+function SubKeySelector:setDirection(direction)
+	self.direction = direction
+	self:setActive(1)
+end
+
+function SubKeySelector:getDirection()
+	return self.direction
 end
 
 Letter = Core.class(Sprite)
@@ -189,21 +267,26 @@ function Letter:init(theLetter,width,height, font)
 end
 
 Key = Core.class(Sprite)
-function Key:init(keyValues,parent,colLeft,rowTop, font, layer)
+function Key:init(mainKey,subKeys, parent,colLeft,rowTop, font, layer)
 	self.layer = layer
 	self.BigSmallSwitcher = false
 	self.NumericalSwitcher = false
 	self.parent = parent
 	self.active = false
+	self.timer = Timer.new(50, 6)
+	self.text = mainKey
+	self.subKeys = subKeys
+	self.subKeysShown = false
+	self.startPosX = 0
 
 	local keyType = 1
-	if keyValues == parent.UPPER or keyValues == parent.LOWER or keyValues == parent.DEL or keyValues == parent.TEXT or keyValues == parent.NUMBERS or keyValues == parent.HIDE or keyValues == parent.ENTER then
+	if mainKey == parent.UPPER or mainKey == parent.LOWER or mainKey == parent.DEL or mainKey == parent.TEXT or mainKey == parent.NUMBERS or mainKey == parent.HIDE or mainKey == parent.ENTER then
 		keyType = 2
-	elseif keyValues == parent.SPACE then
+	elseif mainKey == parent.SPACE then
 		keyType = 3
 	end
-	if keyValues == parent.LOWER then
-		self.keyBack = Bitmap.new(parent.keyImages[keyValues])
+	if mainKey == parent.LOWER then
+		self.keyBack = Bitmap.new(parent.keyImages[mainKey])
 	else
 		self.keyBack = Bitmap.new(parent.keyImages["BACKGROUND"][keyType])
 	end
@@ -214,25 +297,24 @@ function Key:init(keyValues,parent,colLeft,rowTop, font, layer)
 	self:addChild(self.keyBack)
 	self:addChild(self.selKey)
 
-	self.text = keyValues
 	local keyExists = true
-	if keyValues and keyValues:len() <= 2 then
-		self.keyLetters = Letter.new(keyValues,self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.NUMBERS then
+	if mainKey and mainKey:len() <= 2 then
+		self.keyLetters = Letter.new(mainKey,self:getWidth(), parent.keyHeight, font)
+	elseif mainKey == parent.NUMBERS then
 		self.keyLetters = Letter.new("?12",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.TEXT then
+	elseif mainKey == parent.TEXT then
 		self.keyLetters = Letter.new("abc",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.HIDE then	--Down arrow Unicode: 0xE28693	
+	elseif mainKey == parent.HIDE then	--Down arrow Unicode: 0xE28693	
 		self.keyLetters = Letter.new("\226\134\147",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.UPPER then	--Up arrow Unicode: 0xE28691	
+	elseif mainKey == parent.UPPER then	--Up arrow Unicode: 0xE28691	
 		self.keyLetters = Letter.new("\226\134\145",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.DEL then		--Delete Unicode: 0xE296A0
+	elseif mainKey == parent.DEL then		--Delete Unicode: 0xE296A0
 		self.keyLetters = Letter.new("\226\150\160",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.SPACE then
-		self.keyLetters = Letter.new("",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.LOWER then
+	elseif mainKey == parent.SPACE then
+		self.keyLetters = Letter.new(self.lang,self:getWidth(), parent.keyHeight, font)
+	elseif mainKey == parent.LOWER then
 		self.keyLetters = Letter.new("\226\134\145",self:getWidth(), parent.keyHeight, font)
-	elseif keyValues == parent.ENTER then	--Enter unicode: 0xE29692
+	elseif mainKey == parent.ENTER then	--Enter unicode: 0xE29692
 		self.keyLetters = Letter.new("\226\150\146",self:getWidth(), parent.keyHeight, font)
 	else
 		--No key present!
@@ -244,6 +326,13 @@ function Key:init(keyValues,parent,colLeft,rowTop, font, layer)
 	end
 	self.keyBack:addEventListener(Event.MOUSE_UP,self.onMouseUp, self)
 	self.keyBack:addEventListener(Event.MOUSE_DOWN,self.onMouseDown, self)
+	self.keyBack:addEventListener(Event.MOUSE_MOVE,self.onMouseMove, self)
+end
+
+function Key:removeEventListeners()
+	self.keyBack:removeEventListener(Event.MOUSE_UP,self.onMouseUp, self)
+	self.keyBack:removeEventListener(Event.MOUSE_DOWN,self.onMouseDown, self)
+	self.keyBack:removeEventListener(Event.MOUSE_MOVE,self.onMouseMove, self)
 end
 
 function Key:setBMSwitcher(switcher)
@@ -256,53 +345,140 @@ end
 
 function Key:onMouseDown(event)
 	if self:hitTestPoint(event.x, event.y) and self.layer == self.parent.activeLayout then
+		self.startPosX = self.keyBack:localToGlobal(1,1)
 		self.selKey:setVisible(true)
 		self.active = true
 		event:stopPropagation()
+		if #self.subKeys > 0 then
+			if self.timer then
+				self.timer:reset()
+			end
+			if not self.timer:hasEventListener(Event.TIMER) then
+				self.timer:addEventListener(Event.TIMER,self.onMousePressing, self)
+			end
+			self.timer:start()
+		elseif self.text == self.parent.DEL then
+			if not self.timer:hasEventListener(Event.TIMER) then
+				self.timer:setDelay(300)
+				self.timer:setRepeatCount(0)
+				self.timer:addEventListener(Event.TIMER,self.onDelPressing, self)
+			end
+			self.timer:start()
+		end
 	end
 end
 
-function Key:onMouseUp(event)
-	if self:hitTestPoint(event.x, event.y) and self.layer == self.parent.activeLayout and self.active then
-		self.active = false
-		Timer.delayedCall(100, function()
-			self.selKey:setVisible(false)
-		end)
-		local newLetter = self.text
-		if newLetter == self.parent.UPPER or newLetter == self.parent.LOWER then
-			self.parent:dispatchEvent(Event.new("switchBM"))
-		elseif newLetter == self.parent.NUMBERS or newLetter == self.parent.TEXT then
-			self.parent:dispatchEvent(Event.new("switchNUM"))
-		elseif newLetter == self.parent.DEL then
-			local lastByte = string.byte(string.sub(self.parent.inputbox.textContent,self.parent.inputbox.textContent:len(),self.parent.inputbox.textContent:len()))
-			local delLength = 1
-			if lastByte and lastByte >=128 and lastByte <=192 then
-				delLength = 2	-- The character to remove uses two bytes in the string
-			end
-			self.parent.inputbox.textField:setText(string.sub(self.parent.inputbox.textField:getText(),1,self.parent.inputbox.textField:getText():len()-delLength))
-			self.parent.inputbox.textContent = string.sub(self.parent.inputbox.textContent,1,self.parent.inputbox.textContent:len()-delLength)
-		elseif newLetter == self.parent.SPACE then
-			local letter = " "
-			if self.parent.inputbox.passWordField then
-				letter = "*"
-			end
-			self.parent.inputbox.textField:setText(self.parent.inputbox.textField:getText()..letter)
-			self.parent.inputbox.textContent = self.parent.inputbox.textContent.." "
-		elseif newLetter == self.parent.HIDE then
-			self.parent:Hide()
-		elseif self.parent.inputbox.textField:getText():len() < self.parent.inputbox.maxLetters then
-			local letter = newLetter
-			if self.parent.inputbox.passWordField then
-				letter = "*"
-			end
-			self.parent.inputbox.textField:setText(self.parent.inputbox.textField:getText()..letter)
-			self.parent.inputbox.textContent = self.parent.inputbox.textContent..newLetter
-		end	
-	elseif self.active then
-		self.active = false
-		self.selKey:setVisible(false)
-		event:stopPropagation()
+function Key:onDelPressing(event)
+	if self.timer:getCurrentCount() == 3 then
+		self.timer:setDelay(250)
 	end
+	if self.timer:getCurrentCount() == 7 then
+		self.timer:setDelay(200)
+	end
+	if self.timer:getCurrentCount() == 12 then
+		self.timer:setDelay(150)
+	end
+	if self.timer:getCurrentCount() == 20 then
+		self.timer:setDelay(100)
+	end
+	if self.timer:getCurrentCount() == 60 then
+		self.timer:setDelay(30)
+	end
+	self:KeyStroke(self.text)
+end
+
+function Key:onMouseMove(event)
+	if self.active then
+		if self.subKeysShown then
+			local selKey = math.min(math.ceil(self.subKeySel:getDirection()*(event.x - self.startPosX) / self.parent.keyWidth), self.subKeySel:getMaxKeys())
+			if selKey <= 0 then
+				selKey = 1
+			end
+			self.subKeySel:setActive(selKey)
+		elseif not self:hitTestPoint(event.x, event.y) then
+			self:leftKey()
+			event:stopPropagation()
+		end
+	end
+end
+
+function Key:onMousePressing(event)
+	if self.timer:getCurrentCount() == 4 then	
+		self.subKeySel = SubKeySelector.new(self.text,self.subKeys, self.parent.keyWidth)
+		self.parent:addChild(self.subKeySel)
+		if self.startPosX + self.subKeySel:getMaxKeys() * self.parent.keyWidth > application:getLogicalWidth() then
+			self.subKeySel:setDirection(-1)
+			self.startPosX = self.startPosX + self.parent.keyWidth
+			self.subKeySel:setPosition(self.startPosX - self.subKeySel:getMaxKeys()*self.parent.keyWidth,self.keyBack:getY() - 4)
+		else
+			self.subKeySel:setPosition(self.startPosX,self.keyBack:getY() - 4)
+		end
+		self.subKeySel:Show()
+		self.subKeysShown = true
+		self.subKeyDirecton = 1
+	end
+end
+
+function Key:leftKey()
+	self.timer:reset()
+	if self.subKeySel then
+		self.parent:removeChild(self.subKeySel)
+		self.subKeySel:cleanUp()
+	end
+	self.subKeySel = nil
+	self.active = false
+	self.subKeysShown = false
+	self.timer:removeEventListener(Event.TIMER,self.onMousePressing, self)
+	collectgarbage()
+	Timer.delayedCall(100, function()
+		self.selKey:setVisible(false)
+	end)
+end
+
+function Key:onMouseUp(event)
+	if self.subKeysShown then
+		self.subKeysShown = false
+		self:KeyStroke(self.subKeySel:getSelectedKey())
+		self:leftKey()
+		event:stopPropagation()
+	elseif self:hitTestPoint(event.x, event.y) and self.layer == self.parent.activeLayout and self.active then
+		self:leftKey()
+		self:KeyStroke(self.text)
+		collectgarbage()
+	end
+end
+
+function Key:KeyStroke(text)
+	local newLetter = text
+	if newLetter == self.parent.UPPER or newLetter == self.parent.LOWER then
+		self.parent:dispatchEvent(Event.new("switchBM"))
+	elseif newLetter == self.parent.NUMBERS or newLetter == self.parent.TEXT then
+		self.parent:dispatchEvent(Event.new("switchNUM"))
+	elseif newLetter == self.parent.DEL then
+		local lastByte = string.byte(string.sub(self.parent.inputbox.textContent,self.parent.inputbox.textContent:len(),self.parent.inputbox.textContent:len()))
+		local delLength = 1
+		if lastByte and lastByte >=128 and lastByte <=192 then
+			delLength = 2	-- The character to remove uses two bytes in the string
+		end
+		self.parent.inputbox.textField:setText(string.sub(self.parent.inputbox.textField:getText(),1,self.parent.inputbox.textField:getText():len()-delLength))
+		self.parent.inputbox.textContent = string.sub(self.parent.inputbox.textContent,1,self.parent.inputbox.textContent:len()-delLength)
+	elseif newLetter == self.parent.SPACE then
+		local letter = " "
+		if self.parent.inputbox.passWordField then
+			letter = "*"
+		end
+		self.parent.inputbox.textField:setText(self.parent.inputbox.textField:getText()..letter)
+		self.parent.inputbox.textContent = self.parent.inputbox.textContent.." "
+	elseif newLetter == self.parent.HIDE then
+		self.parent:Hide()
+	elseif self.parent.inputbox.textField:getText():len() < self.parent.inputbox.maxLetters then
+		local letter = newLetter
+		if self.parent.inputbox.passWordField then
+			letter = "*"
+		end
+		self.parent.inputbox.textField:setText(self.parent.inputbox.textField:getText()..letter)
+		self.parent.inputbox.textContent = self.parent.inputbox.textContent..newLetter
+	end	
 end
 
 KeyBoard = Core.class(Sprite)
@@ -379,6 +555,7 @@ function KeyBoard:setLang(language, create)
 		language = defLang
 		langFile = loadfile("locale/"..language..".lua")
 	end
+	self.lang = language
 	langFile()
 	self.keys = keyLang(self)
 	for i=1,3 do
@@ -423,36 +600,50 @@ function KeyBoard:ShowActiveLayer()
 	end
 end
 
+function removeChildren(object)
+	while object:getNumChildren() > 0 do
+		removeChildren(object:getChildAt(object:getNumChildren()))
+		object:removeChildAt(object:getNumChildren())
+	end
+end
+
 function KeyBoard:Create(inputBox)
 	local colLeft =  0
 	local rowTop = - self.keyHeight
 	local font = TTFont.new("arial.ttf",30,true)
+	local mainKey = ""
+	local subKeys = {}
 	self.inputbox = inputBox
 
 	for b,layer in pairs(self.keys) do
 		rowTop = - self.keyHeight
-		if self.cChildren[b] > 0 then
-			for d=1,self.cChildren[b] do
-				self.layers[b]:removeChildAt(1)
-			end
-			self.cChildren[b] = 0
+		for i=1,self.layers[b]:getNumChildren() do
+			local key = self.layers[b]:getChildAt(i)
+			key:removeEventListeners()
 		end
+		removeChildren(self.layers[b])
+		collectgarbage()
 		for rowNo,row in pairs(layer) do
 			colLeft =  self.hSpacing[b]
 			rowTop = rowTop + self.vSpacing + self.keyHeight
-			for i,letter in pairs(row) do
-				if letter == self.EXTRASPACE then
+			for i,letter in pairs(row) do			
+				if type(letter) ~= "table" then
+					mainKey = letter
+					subKeys = {}
+				else
+					mainKey = letter[1]
+					subKeys = letter[2]
+				end
+				if mainKey == self.EXTRASPACE then
 					colLeft = colLeft + (self.keyWidth + self.hSpacing[b]) / 2
 				else
-					local theKey = Key.new(letter,self,colLeft,rowTop,font,b)
+					local theKey = Key.new(mainKey,subKeys, self,colLeft,rowTop,font,b)
 					self.layers[b]:addChild(theKey)
-					self.cChildren[b] = self.cChildren[b] + 1
 					colLeft = colLeft + theKey:getWidth() + self.hSpacing[b]
 				end
 			end
 		end
 	end
-
 	self.layers[2]:setVisible(false)
 	self.layers[3]:setVisible(false)
 end
