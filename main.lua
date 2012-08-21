@@ -8,7 +8,7 @@ Exampled of inputbox and keyboard
 	local xpos = -(application:getLogicalTranslateX() / application:getLogicalScaleX())
 	local ypos = -(application:getLogicalTranslateY() / application:getLogicalScaleY())
 
-	local keyboard = KeyBoard.new("en_GB")
+	local keyboard = KeyBoard.new()
 	keyboard:Create()
 	local inputbox = InputBox.new(xpos+20,ypos+20,350,40)
 	

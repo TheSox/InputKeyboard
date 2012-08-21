@@ -76,7 +76,8 @@
 	v0.3a	Keyboard files moved to correct directory
 	v0.4	1. Show alternatie letters when pressing longer on a key
 			2. Automatically deleting more characters when holding the DEL key pressed
-			3. Fixed some potential memory leaks			
+			3. Fixed some potential memory leaks
+	v0.4a	Set default keyboard to users location, en_GB if location doesn't exist
 ]]--
 InputBox = Core.class(Sprite)
 
@@ -494,7 +495,7 @@ function KeyBoard:init(language)
 	self.LOWER = "LOWERCASE"
 	self.ENTER = "ENTER"
 	self.EXTRASPACE = "ES"
-	self.lang = "en_GB"
+	self.lang = application:getLocale()
 	-- Load all keyimages
 	self.keyImages = {}
 	self.keyImages[self.LOWER] = Texture.new("img/"..self.LOWER..".png")	
@@ -547,7 +548,7 @@ end
 function KeyBoard:setLang(language, create)
 	local defLang = "en_GB"
 	if language == nil then
-		language = defLang
+		language = self.lang
 	end
 	-- Load keyboard matrix
 	local langFile = loadfile("locale/"..language..".lua")
